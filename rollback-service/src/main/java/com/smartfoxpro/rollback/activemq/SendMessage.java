@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.core.JmsMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 
 @Component
 public class SendMessage {
@@ -11,7 +13,7 @@ public class SendMessage {
     @Autowired
     private  JmsMessagingTemplate jmsMessagingTemplate;
 
-    public void send(String nameQueue, String msg) {
+    public void sendList(String nameQueue, List msg) {
         jmsMessagingTemplate.convertAndSend(nameQueue, msg);
     }
 

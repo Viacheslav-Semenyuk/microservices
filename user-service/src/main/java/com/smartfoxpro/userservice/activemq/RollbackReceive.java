@@ -1,28 +1,45 @@
 package com.smartfoxpro.userservice.activemq;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.smartfoxpro.userservice.entity.Request;
 import com.smartfoxpro.userservice.entity.User;
 import com.smartfoxpro.userservice.repository.UserRepository;
-import lombok.extern.slf4j.Slf4j;
+import com.smartfoxpro.userservice.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @Component
 public class RollbackReceive {
 
-    @Autowired
-    private Gson gson;
+    private final String rollbackUserQueue = "rollback-user-queue";
 
+    @Autowired
+    private UserService userService;
     @Autowired
     private UserRepository userRepository;
 
-    @JmsListener(destination = "rollback-user-queue")
-    public void update(String oldEntity) {
-        userRepository.save(gson.fromJson(oldEntity, User.class));
+    @JmsListener(destination = rollbackUserQueue, containerFactory = "jsaFactory")
+    public void rollback(List requests) {
+        Map<String, String> oldEntity = new HashMap<>();
+        ObjectMapper mapper = new ObjectMapper();
+        List<Request> requestList = mapper.convertValue(requests, new TypeReference<List<Request>>() {
+        });
+        for (Request request : Lists.reverse(requestList)) {
+            if (request.getExist()) {
+                oldEntity.putAll(request.getOldEntity());
+                userRepository.save(mapper.convertValue(oldEntity, User.class));
+            } else {
+                userService.delete(mapper.convertValue(oldEntity, User.class));
+            }
+        }
+
     }
-    @JmsListener(destination = "rollback-user-delete-queue")
-    public void delete(String oldEntity) {
-        userRepository.delete(gson.fromJson(oldEntity, User.class));
-    }
+
 }

@@ -22,5 +22,5 @@ public class Transaction {
     @NonNull
     private String id;
 
-    private List<Request> requests = new ArrayList<>();
+    private List<Request> requests;
 }

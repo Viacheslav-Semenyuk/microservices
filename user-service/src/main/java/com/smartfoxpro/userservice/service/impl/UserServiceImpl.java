@@ -1,15 +1,10 @@
 package com.smartfoxpro.userservice.service.impl;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.smartfoxpro.userservice.activemq.SendMessage;
 import com.smartfoxpro.userservice.entity.User;
 import com.smartfoxpro.userservice.repository.UserRepository;
 import com.smartfoxpro.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +38,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User update(User user) {
         if (userRepository.existsById(user.getId())) {
+            //block code for test
             if (user.getName().equals("error")) {
                 throw new RuntimeException();
             }
@@ -53,8 +49,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void delete(User user) {
-        User deleteUser = getById(user.getId());
-        userRepository.delete(deleteUser);
+        userRepository.delete(user);
     }
 
 }

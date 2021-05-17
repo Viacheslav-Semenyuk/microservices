@@ -1,3 +1,5 @@
+server:
+  port: 8082
 spring:
   application:
     name: rollback-service
@@ -11,8 +13,5 @@ spring:
       port: 27017
       database: rollback_service
 
-server:
-  port: 8082
-jms:
-  queue:
-    rollback-user: rollback-user-queue
+
+

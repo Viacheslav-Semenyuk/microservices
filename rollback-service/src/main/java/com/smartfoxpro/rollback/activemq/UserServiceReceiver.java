@@ -1,8 +1,8 @@
 package com.smartfoxpro.rollback.activemq;
 
-import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.smartfoxpro.rollback.entity.Request;
 import com.smartfoxpro.rollback.entity.Transaction;
 import com.smartfoxpro.rollback.repository.TransactionRepository;
@@ -12,19 +12,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
 public class UserServiceReceiver {
 
-    @Value("${jms.queue.rollback-user}")
-    private String rollbackUserQueue;
-
-    @Autowired
-    private Gson gson;
+    private final String rollbackUserQueue = "rollback-user-queue";
+    private final String userRollbackQueue = "user-rollback-queue";
+    private final String userRollbackErrorQueue = "user-rollback-error-queue";
 
     @Autowired
     private SendMessage sendMessage;
@@ -32,33 +30,29 @@ public class UserServiceReceiver {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    @JmsListener(destination = "user-rollback-queue")
-    public void listener(String request) {
-        JsonObject jsonRequest = gson.fromJson(request, JsonObject.class);
-        saveRequest(gson.fromJson(jsonRequest, Request.class), jsonRequest.get("tx_id").getAsString());
+    @JmsListener(destination = userRollbackQueue, containerFactory = "jsaFactory")
+    public void listener(ObjectNode request) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        String tx_id = request.get("tx_id").asText();
+        request.remove("tx_id");
+        saveRequest(mapper.treeToValue(request, Request.class), tx_id);
     }
 
-    @JmsListener(destination = "user-rollback-error-queue")
+    @JmsListener(destination = userRollbackErrorQueue, containerFactory = "jsaFactory")
     public void listenerError(String tx_id) {
-        Transaction transaction = transactionRepository.findById(tx_id).get();
-        Map<String, String> oldEntity = new HashMap<>();
-        for (Request request : Lists.reverse(transaction.getRequests())) {
-            if (request.getExist()) {
-                oldEntity.putAll(request.getOldEntity());
-                sendMessage.send("rollback-user-queue", gson.toJson(oldEntity));
-            } else {
-                sendMessage.send("rollback-user-delete-queue", gson.toJson(oldEntity));
-            }
-
+        Optional<Transaction> optionalTransaction = transactionRepository.findById(tx_id);
+        if (optionalTransaction.isPresent()) {
+            Transaction transaction = optionalTransaction.get();
+            sendMessage.sendList(rollbackUserQueue, transaction.getRequests());
         }
     }
 
     private void saveRequest(Request request, String tx_id) {
         Transaction transaction = transactionRepository.findById(tx_id)
                 .orElse(new Transaction(tx_id));
-        List<Request> requestList = transaction.getRequests();
-        requestList.add(request);
-        transaction.setRequests(requestList);
+        List<Request> requests = transaction.getRequests() == null ? new ArrayList<>() : transaction.getRequests();
+        requests.add(request);
+        transaction.setRequests(requests);
         transactionRepository.save(transaction);
     }
 

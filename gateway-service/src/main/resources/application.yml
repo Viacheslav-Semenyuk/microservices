@@ -3,17 +3,8 @@ server:
 spring:
   application:
     name: gateway-service
-  activemq:
-    broker-url: tcp://localhost:61616
-    user: admin
-    password: admin
-
 zuul:
   routes:
     user-service:
       serviceId: user-service
       url: http://localhost:8081
-
-jms:
-  queue:
-    gateway-user: gateway-user-queue

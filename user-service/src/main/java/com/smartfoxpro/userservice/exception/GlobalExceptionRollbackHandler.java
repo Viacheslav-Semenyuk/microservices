@@ -11,14 +11,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class GlobalExceptionRollbackHandler {
 
+    private final String userRollbackErrorQueue = "user-rollback-error-queue";
+
     @Autowired
     private Transaction transaction;
 
     @Autowired
     private SendMessage sendMessage;
 
-    @ExceptionHandler(Throwable.class)
-    public void handle(Throwable e) {
-        sendMessage.send("user-rollback-error-queue", transaction.getTx_id());
+    @ExceptionHandler(RuntimeException.class)
+    public void handle(RuntimeException e) {
+        sendMessage.sendString(userRollbackErrorQueue, transaction.getTx_id());
     }
 }
